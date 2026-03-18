@@ -16,6 +16,9 @@ import socket
 import subprocess
 import logging
 import hashlib
+from pygments import highlight
+from pygments.lexers import get_lexer_by_name, guess_lexer
+from pygments.formatters import HtmlFormatter
 try:
     import gooey
     GOOEY = True
@@ -66,15 +69,24 @@ DATA_PATH = os.path.expanduser(
 md_parser = markdown.Markdown(
     extensions=[
         'fenced_code',
+        'codehilite',
         'footnotes',
         'md_in_html',
         'tables',
         'nl2br',
         'sane_lists'
-    ]
+    ],
+    extension_configs={
+        'codehilite': {
+            'linenums': False,
+            'guess_lang': True
+        }
+    }
 )
 
 ANKI_PORT = 8765
+
+CODE_CSS_URL = 'https://cdn.jsdelivr.net/npm/pygments-css@1.0.0/monokai.css'
 
 ANKI_CLOZE_REGEXP = re.compile(r'{{c\d+::[\s\S]+?}}')
 
@@ -420,22 +432,32 @@ class FormatConverter:
         )
 
     @staticmethod
+    def highlight_code_block(code, lang=''):
+        formatter = HtmlFormatter(nowrap=True)
+        if lang:
+            try:
+                lexer = get_lexer_by_name(lang, stripall=True)
+            except:
+                lexer = guess_lexer(code)
+        else:
+            lexer = guess_lexer(code)
+        return highlight(code, lexer, formatter)
+
+    @staticmethod
     def format(note_text, cloze=False):
-        """Apply all format conversions to note_text."""
+        add_highlight_css = bool(
+            FormatConverter.OBS_DISPLAY_CODE_REGEXP.search(note_text)
+        )
         note_text = FormatConverter.obsidian_to_anki_math(note_text)
-        # Extract the parts that are anki math
         math_matches = [
             math_match.group(0)
             for math_match in FormatConverter.ANKI_MATH_REGEXP.finditer(
                 note_text
             )
         ]
-        # Replace them to be later added back, so they don't interfere
-        # with markdown parsing
         note_text = FormatConverter.ANKI_MATH_REGEXP.sub(
             FormatConverter.MATH_REPLACE, note_text
         )
-        # Now same with code!
         inline_code_matches = [
             code_match.group(0)
             for code_match in FormatConverter.OBS_CODE_REGEXP.finditer(
@@ -462,14 +484,37 @@ class FormatConverter:
                 code_match,
                 1
             )
+        CODE_BLOCK_PLACEHOLDER = "OBSTOANKICODEBLOCKPLACEHOLDER"
+        code_blocks = []
+        code_index = 0
+        def save_code_block(match):
+            nonlocal code_index
+            lang = match.group(1) or ''
+            code = match.group(2)
+            code_blocks.append((lang, code))
+            result = CODE_BLOCK_PLACEHOLDER + str(code_index)
+            code_index += 1
+            return result
         for code_match in display_code_matches:
+            code_block_with_placeholder = re.sub(
+                r'```(\w*)\n([\s\S]*?)```',
+                save_code_block,
+                code_match
+            )
             note_text = note_text.replace(
                 FormatConverter.DISPLAY_CODE_REPLACE,
-                code_match,
+                code_block_with_placeholder,
                 1
             )
         note_text = FormatConverter.markdown_parse(note_text)
-        # Add back the parts that are anki math
+        for idx, (lang, code) in enumerate(code_blocks):
+            highlighted = FormatConverter.highlight_code_block(code, lang)
+            lang_class = f'{lang} language-{lang}' if lang else ''
+            code_html = f'<pre><code class="hljs {lang_class}">{highlighted}</code></pre>'
+            note_text = note_text.replace(
+                CODE_BLOCK_PLACEHOLDER + str(idx),
+                code_html
+            )
         for math_match in math_matches:
             note_text = note_text.replace(
                 FormatConverter.MATH_REPLACE,
@@ -481,7 +526,6 @@ class FormatConverter:
         note_text = FormatConverter.fix_image_src(note_text)
         note_text = FormatConverter.fix_audio_src(note_text)
         note_text = note_text.strip()
-        # Remove unnecessary paragraph tag
         if note_text.startswith(
             FormatConverter.PARA_OPEN
         ) and note_text.endswith(
@@ -489,6 +533,10 @@ class FormatConverter:
         ):
             note_text = note_text[len(FormatConverter.PARA_OPEN):]
             note_text = note_text[:-len(FormatConverter.PARA_CLOSE)]
+        if add_highlight_css:
+            note_text = '<link href="{}" rel="stylesheet">{}'.format(
+                CODE_CSS_URL, note_text
+            )
         return note_text
 
 

@@ -3,8 +3,7 @@ import { basename, extname } from 'path'
 import { Converter } from 'showdown'
 import { CachedMetadata } from 'obsidian'
 import * as c from './constants'
-
-import showdownHighlight from 'showdown-highlight'
+import hljs from 'highlight.js'
 
 const ANKI_MATH_REGEXP:RegExp = /(\\\[[\s\S]*?\\\])|(\\\([\s\S]*?\\\))/g
 const HIGHLIGHT_REGEXP:RegExp = /==(.*?)==/g
@@ -28,8 +27,7 @@ let converter: Converter = new Converter({
 	literalMidWordUnderscores: true,
 	tables: true, tasklists: true,
 	simpleLineBreaks: true,
-	requireSpaceBeforeHeadingText: true,
-	extensions: [showdownHighlight]
+	requireSpaceBeforeHeadingText: true
 })
 
 function escapeHtml(unsafe: string): string {
@@ -143,6 +141,18 @@ export class FormatConverter {
 		return note_text
 	}
 
+	highlight_code_block(code: string, lang: string): string {
+		/*Highlight code using highlight.js and return HTML.*/
+		let highlighted: string
+		if (lang && hljs.getLanguage(lang)) {
+			highlighted = hljs.highlight(code, { language: lang }).value
+		} else {
+			highlighted = hljs.highlightAuto(code).value
+		}
+		const langClass = lang ? `${lang} language-${lang}` : ''
+		return `<pre><code class="hljs ${langClass}">${highlighted}</code></pre>`
+	}
+
 	format(note_text: string, cloze: boolean, highlights_to_cloze: boolean): string {
 		note_text = this.obsidian_to_anki_math(note_text)
 		//Extract the parts that are anki math
@@ -165,14 +175,27 @@ export class FormatConverter {
 		note_text = note_text.replace(HIGHLIGHT_REGEXP, String.raw`<mark>$1</mark>`)
 		note_text = this.decensor(note_text, DISPLAY_CODE_REPLACE, display_code_matches, false)
 		note_text = this.decensor(note_text, INLINE_CODE_REPLACE, inline_code_matches, false)
+		// Extract code blocks before markdown conversion to preserve them in lists
+		const CODE_BLOCK_PLACEHOLDER = "OBSTOANKICODEBLOCKPLACEHOLDER"
+		const code_blocks: Array<{lang: string, code: string}> = []
+		let code_index = 0
+		note_text = note_text.replace(/```(\w*)\n([\s\S]*?)```/g, (_match, lang, code) => {
+			code_blocks.push({ lang: lang || '', code: code })
+			return CODE_BLOCK_PLACEHOLDER + (code_index++)
+		})
 		note_text = converter.makeHtml(note_text)
+		// Replace placeholders with highlighted code blocks
+		code_blocks.forEach((block, idx) => {
+			const code_html = this.highlight_code_block(block.code, block.lang)
+			note_text = note_text.replace(CODE_BLOCK_PLACEHOLDER + idx, code_html)
+		})
 		note_text = this.decensor(note_text, MATH_REPLACE, math_matches, true).trim()
 		// Remove unnecessary paragraph tag
 		if (note_text.startsWith(PARA_OPEN) && note_text.endsWith(PARA_CLOSE)) {
 			note_text = note_text.slice(PARA_OPEN.length, -1 * PARA_CLOSE.length)
 		}
 		if (add_highlight_css) {
-			note_text = '<link href="' + c.CODE_CSS_URL + '" rel="stylesheet">' + note_text
+			note_text = c.CODE_HIGHLIGHT_CSS + note_text
 		}
 		return note_text
 	}
