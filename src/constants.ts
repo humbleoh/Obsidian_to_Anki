@@ -5,7 +5,22 @@ export const OBS_DISPLAY_MATH_REGEXP: RegExp = /\$\$([\s\S]*?)\$\$/g
 export const OBS_CODE_REGEXP:RegExp = /(?<!`)`(?=[^`])[\s\S]*?`/g
 export const OBS_DISPLAY_CODE_REGEXP:RegExp = /```[\s\S]*?```/g
 
-export const CODE_CSS_URL = `https://cdn.jsdelivr.net/npm/highlightjs-themes@1.0.0/arta.css`
+// Inline CSS for syntax highlighting (solarized-light theme from highlight.js)
+// This is embedded directly in HTML since Anki doesn't support external CSS links
+export const CODE_HIGHLIGHT_CSS: string = `<style>
+.hljs{display:block;overflow-x:auto;padding:0.5em;background:#fdf6e3;color:#657b83;font-size:12px;font-family:monospace;-webkit-text-size-adjust:none}
+.hljs-comment,.diff .hljs-header,.hljs-doctype,.hljs-pi,.lisp .hljs-string,.hljs-javadoc{color:#93a1a1}
+.hljs-keyword,.hljs-winutils,.method,.hljs-addition,.css .hljs-tag,.hljs-request,.hljs-status,.nginx .hljs-title{color:#859900}
+.hljs-number,.hljs-command,.hljs-string,.hljs-tag .hljs-value,.hljs-rule .hljs-value,.hljs-phpdoc,.hljs-dartdoc,.tex .hljs-formula,.hljs-regexp,.hljs-hexcolor,.hljs-link_url{color:#2aa198}
+.hljs-title,.hljs-localvars,.hljs-chunk,.hljs-decorator,.hljs-built_in,.hljs-identifier,.vhdl .hljs-literal,.hljs-id,.css .hljs-function,.hljs-name{color:#268bd2}
+.hljs-attribute,.hljs-variable,.lisp .hljs-body,.smalltalk .hljs-number,.hljs-constant,.hljs-class .hljs-title,.hljs-parent,.hljs-type,.hljs-link_reference{color:#b58900}
+.hljs-preprocessor,.hljs-preprocessor .hljs-keyword,.hljs-pragma,.hljs-shebang,.hljs-symbol,.hljs-symbol .hljs-string,.diff .hljs-change,.hljs-special,.hljs-attr_selector,.hljs-subst,.hljs-cdata,.css .hljs-pseudo,.hljs-header{color:#cb4b16}
+.hljs-deletion,.hljs-important{color:#dc322f}
+.hljs-link_label{color:#6c71c4}
+.tex .hljs-formula{background:#eee8d5}
+</style>`
+
+export const CODE_CSS_URL = `https://cdn.jsdelivr.net/npm/highlightjs-themes@1.0.0/solarized_light.css`
 
 export function escapeRegex(str: string): string {
     // Got from stackoverflow - https://stackoverflow.com/questions/3561493/is-there-a-regexp-escape-function-in-javascript
