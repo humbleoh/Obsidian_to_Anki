@@ -8,6 +8,8 @@ export const OBS_DISPLAY_CODE_REGEXP:RegExp = /```[\s\S]*?```/g
 // Inline CSS for syntax highlighting (solarized-light theme from highlight.js)
 // This is embedded directly in HTML since Anki doesn't support external CSS links
 export const CODE_HIGHLIGHT_CSS: string = `<style>
+@import url('https://fonts.googleapis.com/css2?family=Inconsolata:wght@400;500;600&display=swap');
+code:not(pre code){background:#e0e0e0;padding:0.15em 0.3em;border-radius:3px;font-family:'Inconsolata',monospace;font-size:0.9em}
 .hljs{display:block;overflow-x:auto;padding:0.5em;background:#fdf6e3;color:#657b83;font-size:12px;font-family:monospace;-webkit-text-size-adjust:none}
 .hljs-comment,.diff .hljs-header,.hljs-doctype,.hljs-pi,.lisp .hljs-string,.hljs-javadoc{color:#93a1a1}
 .hljs-keyword,.hljs-winutils,.method,.hljs-addition,.css .hljs-tag,.hljs-request,.hljs-status,.nginx .hljs-title{color:#859900}
