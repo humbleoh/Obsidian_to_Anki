@@ -372,6 +372,21 @@ class FormatConverter:
     def markdown_parse(text):
         """Apply markdown conversions to text."""
         text = md_parser.reset().convert(text)
+        text = re.sub(
+            r'<table>',
+            '<table style="border-collapse: collapse; width: 100%;">',
+            text
+        )
+        text = re.sub(
+            r'<th>',
+            '<th style="border: 1px solid #ccc; padding: 8px; text-align: left; background-color: #f2f2f2;">',
+            text
+        )
+        text = re.sub(
+            r'<td>',
+            '<td style="border: 1px solid #ccc; padding: 8px;">',
+            text
+        )
         return text
 
     @staticmethod

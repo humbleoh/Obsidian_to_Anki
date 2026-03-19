@@ -180,10 +180,22 @@ export class FormatConverter {
 		const code_blocks: Array<{lang: string, code: string}> = []
 		let code_index = 0
 		note_text = note_text.replace(/```(\w*)\n([\s\S]*?)```/g, (_match, lang, code) => {
-			code_blocks.push({ lang: lang || '', code: code })
+			code_blocks.push({ lang: lang || '', code: code.trimEnd() })
 			return CODE_BLOCK_PLACEHOLDER + (code_index++)
 		})
 		note_text = converter.makeHtml(note_text)
+		note_text = note_text.replace(
+			/<table>/g,
+			'<table style="border-collapse: collapse; width: 100%;">'
+		)
+		note_text = note_text.replace(
+			/<th>/g,
+			'<th style="border: 1px solid #ccc; padding: 8px; text-align: left; background-color: #f2f2f2;">'
+		)
+		note_text = note_text.replace(
+			/<td>/g,
+			'<td style="border: 1px solid #ccc; padding: 8px;">'
+		)
 		// Replace placeholders with highlighted code blocks
 		code_blocks.forEach((block, idx) => {
 			const code_html = this.highlight_code_block(block.code, block.lang)
