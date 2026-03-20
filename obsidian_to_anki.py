@@ -447,6 +447,15 @@ class FormatConverter:
         )
 
     @staticmethod
+    def add_image_style(html_text):
+        """Add border styling to images."""
+        return re.sub(
+            r'<img([^>]*)>',
+            r'<img\1 style="border:1px solid #ccc;border-radius:4px;">',
+            html_text
+        )
+
+    @staticmethod
     def highlight_code_block(code, lang=''):
         formatter = HtmlFormatter(nowrap=True)
         if lang:
@@ -540,6 +549,7 @@ class FormatConverter:
         FormatConverter.get_audio(note_text)
         note_text = FormatConverter.fix_image_src(note_text)
         note_text = FormatConverter.fix_audio_src(note_text)
+        note_text = FormatConverter.add_image_style(note_text)
         note_text = note_text.strip()
         if note_text.startswith(
             FormatConverter.PARA_OPEN
