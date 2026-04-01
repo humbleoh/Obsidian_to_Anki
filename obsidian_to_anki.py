@@ -372,6 +372,21 @@ class FormatConverter:
     def markdown_parse(text):
         """Apply markdown conversions to text."""
         text = md_parser.reset().convert(text)
+        text = re.sub(
+            r'<table>',
+            '<table style="border-collapse: collapse; width: 100%;">',
+            text
+        )
+        text = re.sub(
+            r'<th>',
+            '<th style="border: 1px solid #ccc; padding: 8px; text-align: left; background-color: #f2f2f2;">',
+            text
+        )
+        text = re.sub(
+            r'<td>',
+            '<td style="border: 1px solid #ccc; padding: 8px;">',
+            text
+        )
         return text
 
     @staticmethod
@@ -428,6 +443,15 @@ class FormatConverter:
         """Fix the audio filenames so that it's relative to Anki."""
         return FormatConverter.SOUND_REGEXP.sub(
             FormatConverter.path_to_filename,
+            html_text
+        )
+
+    @staticmethod
+    def add_image_style(html_text):
+        """Add border styling to images."""
+        return re.sub(
+            r'<img([^>]*)>',
+            r'<img\1 style="border:1px solid #ccc;border-radius:4px;">',
             html_text
         )
 
@@ -525,6 +549,7 @@ class FormatConverter:
         FormatConverter.get_audio(note_text)
         note_text = FormatConverter.fix_image_src(note_text)
         note_text = FormatConverter.fix_audio_src(note_text)
+        note_text = FormatConverter.add_image_style(note_text)
         note_text = note_text.strip()
         if note_text.startswith(
             FormatConverter.PARA_OPEN
