@@ -262,7 +262,7 @@ class FormatConverter:
     """Converting Obsidian formatting to Anki formatting."""
 
     OBS_INLINE_MATH_REGEXP = re.compile(
-        r"(?<!\$)\$(?=[\S])(?=[^$])[\s\S]*?\S\$"
+        r"(?<!\$)\$(?=[\S])(?=[^$])[^$]*?\S\$"
     )
     OBS_DISPLAY_MATH_REGEXP = re.compile(r"\$\$[\s\S]*?\$\$")
 
@@ -472,16 +472,7 @@ class FormatConverter:
         add_highlight_css = bool(
             FormatConverter.OBS_DISPLAY_CODE_REGEXP.search(note_text)
         )
-        note_text = FormatConverter.obsidian_to_anki_math(note_text)
-        math_matches = [
-            math_match.group(0)
-            for math_match in FormatConverter.ANKI_MATH_REGEXP.finditer(
-                note_text
-            )
-        ]
-        note_text = FormatConverter.ANKI_MATH_REGEXP.sub(
-            FormatConverter.MATH_REPLACE, note_text
-        )
+        # Censor code blocks FIRST so $ inside code is not treated as math
         inline_code_matches = [
             code_match.group(0)
             for code_match in FormatConverter.OBS_CODE_REGEXP.finditer(
@@ -499,6 +490,17 @@ class FormatConverter:
         ]
         note_text = FormatConverter.OBS_DISPLAY_CODE_REGEXP.sub(
             FormatConverter.DISPLAY_CODE_REPLACE, note_text
+        )
+        # Now convert math (code blocks are already replaced with placeholders)
+        note_text = FormatConverter.obsidian_to_anki_math(note_text)
+        math_matches = [
+            math_match.group(0)
+            for math_match in FormatConverter.ANKI_MATH_REGEXP.finditer(
+                note_text
+            )
+        ]
+        note_text = FormatConverter.ANKI_MATH_REGEXP.sub(
+            FormatConverter.MATH_REPLACE, note_text
         )
         if cloze:
             note_text = FormatConverter.curly_to_cloze(note_text)
