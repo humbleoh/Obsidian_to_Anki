@@ -154,15 +154,17 @@ export class FormatConverter {
 	}
 
 	format(note_text: string, cloze: boolean, highlights_to_cloze: boolean): string {
+		const add_highlight_css: boolean = note_text.match(c.OBS_DISPLAY_CODE_REGEXP) || note_text.match(c.OBS_CODE_REGEXP) ? true : false;
+		// Censor code blocks FIRST so $ inside code is not treated as math
+		let inline_code_matches: string[]
+		let display_code_matches: string[]
+		[note_text, display_code_matches] = this.censor(note_text, c.OBS_DISPLAY_CODE_REGEXP, DISPLAY_CODE_REPLACE);
+		[note_text, inline_code_matches] = this.censor(note_text, c.OBS_CODE_REGEXP, INLINE_CODE_REPLACE);
+		// Now convert math (code blocks are already replaced with placeholders)
 		note_text = this.obsidian_to_anki_math(note_text)
 		//Extract the parts that are anki math
 		let math_matches: string[]
-		let inline_code_matches: string[]
-		let display_code_matches: string[]
-		const add_highlight_css: boolean = note_text.match(c.OBS_DISPLAY_CODE_REGEXP) || note_text.match(c.OBS_CODE_REGEXP) ? true : false;
 		[note_text, math_matches] = this.censor(note_text, ANKI_MATH_REGEXP, MATH_REPLACE);
-		[note_text, display_code_matches] = this.censor(note_text, c.OBS_DISPLAY_CODE_REGEXP, DISPLAY_CODE_REPLACE);
-		[note_text, inline_code_matches] = this.censor(note_text, c.OBS_CODE_REGEXP, INLINE_CODE_REPLACE);
 		if (cloze) {
 			if (highlights_to_cloze) {
 				note_text = note_text.replace(HIGHLIGHT_REGEXP, "{$1}")
