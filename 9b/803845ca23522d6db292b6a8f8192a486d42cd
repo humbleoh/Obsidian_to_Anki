@@ -1,0 +1,29 @@
+tests/defaults/test_vault/.obsidian/plugins/obsidian-to-anki-plugin/manifest.json
+  s_574ecb5c1181b2::t_9d7b8ef8b815ea 4
+obsidian_to_anki.py
+  s_574ecb5c1181b2::t_e170fdffb6572d 265
+  s_574ecb5c1181b2::t_6ecc80e052c111 475,493-494
+src/constants.ts
+  s_574ecb5c1181b2::t_9bcfa699db1888 3
+tests/defaults/test_vault/.obsidian/plugins/obsidian-to-anki-plugin/styles.css
+  s_574ecb5c1181b2::t_9d7b8ef8b815ea 1-6,10
+src/format.ts
+  s_574ecb5c1181b2::t_c25a7281d29fe0 157-158,163-167
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.4.9",
+  "base_commit_sha": "9b803845ca23522d6db292b6a8f8192a486d42cd",
+  "prompts": {},
+  "logical_commit_id": "9b803845ca23522d6db292b6a8f8192a486d42cd",
+  "sessions": {
+    "s_574ecb5c1181b2": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "ses_1d622638dffeZdiVGjNqgTbtCu",
+        "model": "unknown"
+      },
+      "human_author": "ohyusheng <humbleoh@gmail.com>"
+    }
+  }
+}
