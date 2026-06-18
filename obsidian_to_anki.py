@@ -273,6 +273,15 @@ class FormatConverter:
         r"```[\s\S]*?```"
     )
 
+    # Matches only the header line of an Obsidian callout. The body is
+    # resolved separately by _censor_callouts, which walks subsequent lines
+    # so that lazy continuation (a line without '>' that still belongs to
+    # the callout, per CommonMark blockquote rules) is included correctly.
+    OBS_CALLOUT_HEADER_REGEXP = re.compile(
+        r"^> *\[\!([a-zA-Z0-9_-]+)\]([+-]?)(.*)$",
+        re.MULTILINE
+    )
+
     ANKI_INLINE_START = r"\("
     ANKI_INLINE_END = r"\)"
 
@@ -284,6 +293,21 @@ class FormatConverter:
     MATH_REPLACE = "OBSTOANKIMATH"
     INLINE_CODE_REPLACE = "OBSTOANKICODEINLINE"
     DISPLAY_CODE_REPLACE = "OBSTOANKICODEDISPLAY"
+    CALLOUT_REPLACE = "OBSTOANKICALLOUT"
+
+    # Border colour per Obsidian callout type. Types not listed fall back to
+    # CALLOUT_DEFAULT_BORDER. Background stays grey (#f5f5f5) for all types.
+    CALLOUT_BORDER_COLORS = {
+        'quote': '#555',
+        'important': '#2e7d32',
+        'note': '#1565c0',
+        'question': '#c62828',
+    }
+    CALLOUT_DEFAULT_BORDER = '#000'
+    CALLOUT_QUOTE_FONT_URL = (
+        'https://fonts.googleapis.com/css2?'
+        'family=Inconsolata:wght@400;500;600&display=swap'
+    )
 
     IMAGE_REGEXP = re.compile(r'<img alt=".*?" src="(.*?)"')
     SOUND_REGEXP = re.compile(r'\[sound:(.+)\]')
@@ -468,10 +492,75 @@ class FormatConverter:
         return highlight(code, lexer, formatter)
 
     @staticmethod
+    def _censor_callouts(note_text):
+        """Replace each Obsidian callout with CALLOUT_REPLACE and return the
+        surviving callouts as dicts ({type, title, raw_body}).
+
+        Body extent is resolved by walking lines after the header so that
+        lazy continuation lines (no '>' prefix but still part of the same
+        blockquote paragraph, per CommonMark) are kept inside the callout,
+        matching how Obsidian renders them.
+        """
+        lines = note_text.split('\n')
+        header_re = FormatConverter.OBS_CALLOUT_HEADER_REGEXP
+        callouts = []
+        new_lines = []
+        i = 0
+        n = len(lines)
+        while i < n:
+            header = header_re.match(lines[i])
+            if not header:
+                new_lines.append(lines[i])
+                i += 1
+                continue
+            callout_type = header.group(1).lower()
+            title = header.group(3).strip()
+            body_lines = []
+            i += 1
+            prev_content = True  # header lets the next line be a lazy continuation
+            while i < n:
+                line = lines[i]
+                if line.startswith('>'):
+                    body_lines.append(line)
+                    i += 1
+                    prev_content = True
+                elif line.strip() == '':
+                    # Blank line: callout only continues if the next non-blank
+                    # line is quoted ('>'); otherwise the callout has ended.
+                    j = i + 1
+                    while j < n and lines[j].strip() == '':
+                        j += 1
+                    if j < n and lines[j].startswith('>'):
+                        body_lines.extend(lines[i:j + 1])
+                        i = j + 1
+                        prev_content = True
+                    else:
+                        break
+                else:
+                    # Non-'>', non-blank line: a lazy continuation only while
+                    # it directly continues callout content.
+                    if prev_content:
+                        body_lines.append(line)
+                        i += 1
+                    else:
+                        break
+            callouts.append({
+                'type': callout_type,
+                'title': title,
+                'raw_body': '\n'.join(body_lines),
+            })
+            new_lines.append(FormatConverter.CALLOUT_REPLACE)
+        return '\n'.join(new_lines), callouts
+
+    @staticmethod
     def format(note_text, cloze=False):
         add_highlight_css = bool(
             FormatConverter.OBS_DISPLAY_CODE_REGEXP.search(note_text)
         )
+        # Censor callouts FIRST so their content (code blocks, math, '>')
+        # is not touched by the outer pass. Each callout is rendered
+        # recursively at the end so its inner markdown formats normally.
+        note_text, callout_matches = FormatConverter._censor_callouts(note_text)
         # Censor code blocks FIRST so $ inside code is not treated as math
         inline_code_matches = [
             code_match.group(0)
@@ -563,6 +652,51 @@ class FormatConverter:
         if add_highlight_css:
             note_text = '<link href="{}" rel="stylesheet">{}'.format(
                 CODE_CSS_URL, note_text
+            )
+        # quote callouts use the Inconsolata font; load it once if any survive.
+        if any(c['type'] == 'quote' for c in callout_matches):
+            note_text = '<style>@import url(\'{}\');</style>{}'.format(
+                FormatConverter.CALLOUT_QUOTE_FONT_URL, note_text
+            )
+        # Render callouts: recursively format inner content (so code blocks,
+        # math, etc. inside callouts work), then wrap in a styled div with a
+        # grey background and a border colour keyed to the callout type.
+        for callout_match in callout_matches:
+            callout_type = callout_match['type']
+            raw_body = callout_match['raw_body']
+            # Strip one level of ">" quoting from each quoted body line so
+            # that nested callouts (">> ...") become "> ..." and recurse
+            # properly. Lazy continuation lines (no '>') are left untouched.
+            inner_md = re.sub(
+                r'^> ?', '', raw_body, flags=re.MULTILINE
+            ).strip()
+            # Recursively format the body so inner code blocks / math work.
+            inner_html = FormatConverter.format(inner_md, cloze=cloze)
+            # Strip the leading syntax-highlight CSS link that the recursive
+            # call may have added, to avoid duplicating it in the outer note.
+            inner_html = re.sub(
+                r'^<link href="[^"]*" rel="stylesheet">', '', inner_html
+            )
+            border_color = FormatConverter.CALLOUT_BORDER_COLORS.get(
+                callout_type, FormatConverter.CALLOUT_DEFAULT_BORDER
+            )
+            font_style = (
+                "font-family:'Inconsolata',monospace;"
+                if callout_type == 'quote' else ''
+            )
+            callout_html = (
+                '<div style="background-color:#f5f5f5;'
+                'border:1px solid {border_color};border-radius:4px;'
+                'padding:10px;margin:8px 0;{font_style}">{body}</div>'
+            ).format(
+                border_color=border_color,
+                font_style=font_style,
+                body=inner_html,
+            )
+            note_text = note_text.replace(
+                FormatConverter.CALLOUT_REPLACE,
+                callout_html,
+                1
             )
         return note_text
 
