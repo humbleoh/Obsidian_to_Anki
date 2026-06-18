@@ -1,0 +1,29 @@
+obsidian_to_anki.py
+  s_ed56f2fd345d8c::t_121465d5b50781 495-555
+  s_ed56f2fd345d8c::t_38cde67473a4fd 560-562
+  s_ed56f2fd345d8c::t_d4ca7b13460d69 282-284
+  s_ed56f2fd345d8c::t_5ff3b278f1db22 296
+  s_ed56f2fd345d8c::t_6c96f7b8693668 298-310
+  s_ed56f2fd345d8c::t_2b921ca4858e21 656-660,662-663,679-681,683-686,688-695
+  s_ed56f2fd345d8c::t_a7a2b5fae3dd41 665-669
+  s_ed56f2fd345d8c::t_8a5e4b7b7eddeb 276-281
+  s_ed56f2fd345d8c::t_83eeefa031d67e 661,664,670-678,682,687,696-699
+  s_ed56f2fd345d8c::t_f767848bfa31c7 563
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.5.3",
+  "base_commit_sha": "f5ec51a6699082f56ce59675a08936cb75253895",
+  "prompts": {},
+  "logical_commit_id": "f5ec51a6699082f56ce59675a08936cb75253895",
+  "sessions": {
+    "s_ed56f2fd345d8c": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "ses_1299eb7cfffeD3al2kD4EzZQBm",
+        "model": "unknown"
+      },
+      "human_author": "ohyusheng <humbleoh@gmail.com>"
+    }
+  }
+}
