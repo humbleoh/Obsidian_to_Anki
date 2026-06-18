@@ -7,10 +7,33 @@ import hljs from 'highlight.js'
 
 const ANKI_MATH_REGEXP:RegExp = /(\\\[[\s\S]*?\\\])|(\\\([\s\S]*?\\\))/g
 const HIGHLIGHT_REGEXP:RegExp = /==(.*?)==/g
+// Matches only the header line of an Obsidian callout. Body lines are
+// resolved separately by _censor_callouts to support lazy continuation
+// (lines without '>' that still belong to the callout per CommonMark).
+// Group 1 = type, Group 2 = folding marker (+/-), Group 3 = title.
+const CALLOUT_HEADER_REGEXP:RegExp = /^> *\[!([a-zA-Z0-9_-]+)\]([+-]?)(.*)$/
 
 const MATH_REPLACE:string = "OBSTOANKIMATH"
 const INLINE_CODE_REPLACE:string = "OBSTOANKICODEINLINE"
 const DISPLAY_CODE_REPLACE:string = "OBSTOANKICODEDISPLAY"
+const CALLOUT_REPLACE:string = "OBSTOANKICALLOUT"
+
+// Border colour per Obsidian callout type. Types not listed fall back to
+// CALLOUT_DEFAULT_BORDER. Background stays grey (#f5f5f5) for all types.
+const CALLOUT_BORDER_COLORS: Record<string, string> = {
+	quote: '#555',
+	important: '#2e7d32',
+	note: '#1565c0',
+	question: '#c62828',
+}
+const CALLOUT_DEFAULT_BORDER: string = '#000'
+const CALLOUT_QUOTE_FONT_URL: string = 'https://fonts.googleapis.com/css2?family=Inconsolata:wght@400;500;600&display=swap'
+
+interface CalloutMatch {
+	type: string
+	title: string
+	raw_body: string
+}
 
 const CLOZE_REGEXP:RegExp = /(?:(?<!{){(?:c?(\d+)[:|])?(?!{))((?:[^\n][\n]?)+?)(?:(?<!})}(?!}))/g
 
@@ -153,8 +176,77 @@ export class FormatConverter {
 		return `<pre><code class="hljs ${langClass}">${highlighted}</code></pre>`
 	}
 
+	censor_callouts(note_text: string): [string, CalloutMatch[]] {
+		/*Replace each Obsidian callout with CALLOUT_REPLACE and return the
+		surviving callouts. Body extent is resolved by walking lines after
+		the header so lazy continuation lines (no '>' prefix but still part
+		of the same blockquote paragraph, per CommonMark) are kept inside
+		the callout, matching how Obsidian renders them.*/
+		const lines: string[] = note_text.split('\n')
+		const callouts: CalloutMatch[] = []
+		const new_lines: string[] = []
+		let i = 0
+		const n = lines.length
+		while (i < n) {
+			const header = lines[i].match(CALLOUT_HEADER_REGEXP)
+			if (!header) {
+				new_lines.push(lines[i])
+				i += 1
+				continue
+			}
+			const callout_type: string = (header[1] || '').toLowerCase()
+			const title: string = (header[3] || '').trim()
+			const body_lines: string[] = []
+			i += 1
+			let prev_content: boolean = true  // header lets the next line be a lazy continuation
+			while (i < n) {
+				const line = lines[i]
+				if (line.startsWith('>')) {
+					body_lines.push(line)
+					i += 1
+					prev_content = true
+				} else if (line.trim() === '') {
+					// Blank line: callout only continues if the next non-blank
+					// line is quoted ('>'); otherwise the callout has ended.
+					let j = i + 1
+					while (j < n && lines[j].trim() === '') {
+						j += 1
+					}
+					if (j < n && lines[j].startsWith('>')) {
+						body_lines.push(...lines.slice(i, j + 1))
+						i = j + 1
+						prev_content = true
+					} else {
+						break
+					}
+				} else {
+					// Non-'>', non-blank line: a lazy continuation only while
+					// it directly continues callout content.
+					if (prev_content) {
+						body_lines.push(line)
+						i += 1
+					} else {
+						break
+					}
+				}
+			}
+			callouts.push({
+				type: callout_type,
+				title: title,
+				raw_body: body_lines.join('\n'),
+			})
+			new_lines.push(CALLOUT_REPLACE)
+		}
+		return [new_lines.join('\n'), callouts]
+	}
+
 	format(note_text: string, cloze: boolean, highlights_to_cloze: boolean): string {
 		const add_highlight_css: boolean = note_text.match(c.OBS_DISPLAY_CODE_REGEXP) || note_text.match(c.OBS_CODE_REGEXP) ? true : false;
+		// Censor callouts FIRST so their content (code blocks, math, '>')
+		// is not touched by the outer pass. Each callout is rendered
+		// recursively at the end so its inner markdown formats normally.
+		let callout_matches: CalloutMatch[]
+		;[note_text, callout_matches] = this.censor_callouts(note_text)
 		// Censor code blocks FIRST so $ inside code is not treated as math
 		let inline_code_matches: string[]
 		let display_code_matches: string[]
@@ -210,6 +302,25 @@ export class FormatConverter {
 		}
 		if (add_highlight_css) {
 			note_text = c.CODE_HIGHLIGHT_CSS + note_text
+		}
+		// quote callouts use the Inconsolata font; load it once if any survive.
+		if (callout_matches.some(cm => cm.type === 'quote')) {
+			note_text = `<style>@import url('${CALLOUT_QUOTE_FONT_URL}');</style>` + note_text
+		}
+		for (const callout_match of callout_matches) {
+			const callout_type: string = callout_match.type
+			const raw_body: string = callout_match.raw_body
+			// Strip one level of ">" quoting from each quoted body line so
+			// that nested callouts (">> ...") become "> ..." and recurse
+			// properly. Lazy continuation lines (no '>') are left untouched.
+			const inner_md: string = raw_body.replace(/^> ?/gm, '').trim()
+			let inner_html: string = this.format(inner_md, cloze, highlights_to_cloze)
+			// Strip leading <style>...</style> added by the recursive call to avoid duplication.
+			inner_html = inner_html.replace(/^<style>[\s\S]*?<\/style>/, '')
+			const border_color: string = CALLOUT_BORDER_COLORS[callout_type] || CALLOUT_DEFAULT_BORDER
+			const font_style: string = callout_type === 'quote' ? `font-family:'Inconsolata',monospace;` : ''
+			const callout_html: string = `<div style="background-color:#f5f5f5;border:1px solid ${border_color};border-radius:4px;padding:10px;margin:8px 0;${font_style}">${inner_html}</div>`
+			note_text = note_text.replace(CALLOUT_REPLACE, callout_html)
 		}
 		return note_text
 	}
