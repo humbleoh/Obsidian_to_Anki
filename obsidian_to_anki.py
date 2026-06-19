@@ -19,6 +19,10 @@ import hashlib
 from pygments import highlight
 from pygments.lexers import get_lexer_by_name, guess_lexer
 from pygments.formatters import HtmlFormatter
+from textgram_font import (
+    TEXTGRAM_BOXART_FONT_NAME,
+    build_textgram_font_face_style,
+)
 try:
     import gooey
     GOOEY = True
@@ -557,6 +561,7 @@ class FormatConverter:
         add_highlight_css = bool(
             FormatConverter.OBS_DISPLAY_CODE_REGEXP.search(note_text)
         )
+        has_textgram = re.search(r'```textgram\b', note_text) is not None
         # Censor callouts FIRST so their content (code blocks, math, '>')
         # is not touched by the outer pass. Each callout is rendered
         # recursively at the end so its inner markdown formats normally.
@@ -623,9 +628,33 @@ class FormatConverter:
             )
         note_text = FormatConverter.markdown_parse(note_text)
         for idx, (lang, code) in enumerate(code_blocks):
-            highlighted = FormatConverter.highlight_code_block(code, lang)
-            lang_class = f'{lang} language-{lang}' if lang else ''
-            code_html = f'<pre><code class="hljs {lang_class}">{highlighted}</code></pre>'
+            if lang == 'textgram':
+                # textgram bypasses hljs. An embedded woff2 (see
+                # textgram_font.py) forces Ambiguous-width box-drawing/arrows
+                # to 1 cell on CJK-locale mobile devices, which would
+                # otherwise render them at 2 cells and break ASCII-art
+                # alignment.
+                font_stack = "'{}', 'Courier New', monospace".format(
+                    TEXTGRAM_BOXART_FONT_NAME
+                )
+                box_style = (
+                    'display:block;overflow-x:auto;overflow-wrap:normal;'
+                    'word-break:keep-all;white-space:pre;padding:0.5em;'
+                    'background:#f0f0f0;color:#1a1a1a;font-size:12px;'
+                    'line-height:1.3;border:1px solid #ccc;border-radius:4px;'
+                )
+                code_html = (
+                    '<pre style="{style}font-family:{font};">'
+                    '{escaped}</pre>'
+                ).format(
+                    style=box_style,
+                    font=font_stack,
+                    escaped=html.escape(code),
+                )
+            else:
+                highlighted = FormatConverter.highlight_code_block(code, lang)
+                lang_class = f'{lang} language-{lang}' if lang else ''
+                code_html = f'<pre><code class="hljs {lang_class}">{highlighted}</code></pre>'
             note_text = note_text.replace(
                 CODE_BLOCK_PLACEHOLDER + str(idx),
                 code_html
@@ -652,6 +681,10 @@ class FormatConverter:
         if add_highlight_css:
             note_text = '<link href="{}" rel="stylesheet">{}'.format(
                 CODE_CSS_URL, note_text
+            )
+        if has_textgram:
+            note_text = '{}{}'.format(
+                build_textgram_font_face_style(), note_text
             )
         # quote callouts use the Inconsolata font; load it once if any survive.
         if any(c['type'] == 'quote' for c in callout_matches):
