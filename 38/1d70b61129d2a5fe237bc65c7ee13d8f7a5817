@@ -1,0 +1,28 @@
+textgram_font.py
+  s_eeb20efd3d0c6c::t_239ff533070dea 1-46
+obsidian_to_anki.py
+  s_eeb20efd3d0c6c::t_b1bad6741e2081 564
+  s_eeb20efd3d0c6c::t_513a1284f645e4 643
+  s_eeb20efd3d0c6c::t_6b369a8dd37f5a 631,646,654-657
+  s_eeb20efd3d0c6c::t_fa47529693d654 648
+  s_eeb20efd3d0c6c::t_be9976e2dcb51f 632-642,644-645,647,649-653
+  s_eeb20efd3d0c6c::t_935d9a0c6f159a 685-687
+  s_eeb20efd3d0c6c::t_cc784926d7880c 22-25
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.5.3",
+  "base_commit_sha": "381d70b61129d2a5fe237bc65c7ee13d8f7a5817",
+  "prompts": {},
+  "logical_commit_id": "381d70b61129d2a5fe237bc65c7ee13d8f7a5817",
+  "sessions": {
+    "s_eeb20efd3d0c6c": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "ses_121a9c060ffeNHWxT87NXqzJO6",
+        "model": "unknown"
+      },
+      "human_author": "ohyusheng <humbleoh@gmail.com>"
+    }
+  }
+}
