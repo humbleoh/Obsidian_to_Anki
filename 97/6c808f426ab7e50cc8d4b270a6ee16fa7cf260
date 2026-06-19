@@ -1,0 +1,28 @@
+src/format.ts
+  s_eeb20efd3d0c6c::t_1379bae9192f78 180
+  s_eeb20efd3d0c6c::t_f60e7c6d4b03dc 177-178,182
+  s_eeb20efd3d0c6c::t_584f0d35f7a127 6-9
+  s_eeb20efd3d0c6c::t_b5db1e8163534b 173-176
+  s_eeb20efd3d0c6c::t_ea07432610bb23 179,181
+  s_eeb20efd3d0c6c::t_2981df763e3b4a 321-322
+  s_eeb20efd3d0c6c::t_3553851c4f8be0 259
+src/textgram_font.ts
+  s_eeb20efd3d0c6c::t_919021c56acf7b 1-39
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.5.3",
+  "base_commit_sha": "976c808f426ab7e50cc8d4b270a6ee16fa7cf260",
+  "prompts": {},
+  "logical_commit_id": "976c808f426ab7e50cc8d4b270a6ee16fa7cf260",
+  "sessions": {
+    "s_eeb20efd3d0c6c": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "ses_121a9c060ffeNHWxT87NXqzJO6",
+        "model": "unknown"
+      },
+      "human_author": "ohyusheng <humbleoh@gmail.com>"
+    }
+  }
+}
