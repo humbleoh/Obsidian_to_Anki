@@ -3,6 +3,10 @@ import { basename, extname } from 'path'
 import { Converter } from 'showdown'
 import { CachedMetadata } from 'obsidian'
 import * as c from './constants'
+import {
+    TEXTGRAM_BOXART_FONT_NAME,
+    buildTextgramFontFaceStyle,
+} from './textgram_font'
 import hljs from 'highlight.js'
 
 const ANKI_MATH_REGEXP:RegExp = /(\\\[[\s\S]*?\\\])|(\\\([\s\S]*?\\\))/g
@@ -166,6 +170,16 @@ export class FormatConverter {
 
 	highlight_code_block(code: string, lang: string): string {
 		/*Highlight code using highlight.js and return HTML.*/
+		// textgram bypasses hljs. An embedded woff2 (see textgram_font.ts)
+		// forces Ambiguous-width box-drawing/arrows to 1 cell on CJK-locale
+		// mobile devices, which would otherwise render them at 2 cells and
+		// break ASCII-art alignment.
+		if (lang === 'textgram') {
+			const escaped: string = escapeHtml(code)
+			const font_stack: string = `'${TEXTGRAM_BOXART_FONT_NAME}', 'Courier New', monospace`
+			const box_style: string = 'display:block;overflow-x:auto;overflow-wrap:normal;word-break:keep-all;white-space:pre;padding:0.5em;background:#f0f0f0;color:#1a1a1a;font-size:12px;line-height:1.3;border:1px solid #ccc;border-radius:4px;'
+			return `<pre style="${box_style}font-family:${font_stack};">${escaped}</pre>`
+		}
 		let highlighted: string
 		if (lang && hljs.getLanguage(lang)) {
 			highlighted = hljs.highlight(code, { language: lang }).value
@@ -242,6 +256,7 @@ export class FormatConverter {
 
 	format(note_text: string, cloze: boolean, highlights_to_cloze: boolean): string {
 		const add_highlight_css: boolean = note_text.match(c.OBS_DISPLAY_CODE_REGEXP) || note_text.match(c.OBS_CODE_REGEXP) ? true : false;
+		const has_textgram: boolean = /```textgram\b/.test(note_text)
 		// Censor callouts FIRST so their content (code blocks, math, '>')
 		// is not touched by the outer pass. Each callout is rendered
 		// recursively at the end so its inner markdown formats normally.
@@ -302,6 +317,9 @@ export class FormatConverter {
 		}
 		if (add_highlight_css) {
 			note_text = c.CODE_HIGHLIGHT_CSS + note_text
+		}
+		if (has_textgram) {
+			note_text = buildTextgramFontFaceStyle() + note_text
 		}
 		// quote callouts use the Inconsolata font; load it once if any survive.
 		if (callout_matches.some(cm => cm.type === 'quote')) {
